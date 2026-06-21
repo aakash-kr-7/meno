@@ -1,0 +1,36 @@
+# ==============================================================================
+# (a) What this file is: PEP 621 compliant pyproject.toml configuration.
+# (b) What it does: Declares project packages, metadata, build tools, and all system dependency versions.
+# (c) How it fits into the MENO system: Used by pip / pip install to build and run the Python environment inside and outside Docker.
+# ==============================================================================
+
+[project]
+name = "meno"
+version = "0.2.0"
+description = "MENO — open-source persistent intelligence platform"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "asyncpg",
+    "alembic",
+    "psycopg2-binary",
+    "redis[hiredis]>=5.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings",
+    "sentence-transformers>=2.7.0",
+    "pgvector",
+    "httpx",
+    "python-dotenv",
+    "numpy",
+    "mcp>=1.0.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["apps*", "core*", "knowledge*", "db*", "sdk*", "cli*", "tests*"]
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"

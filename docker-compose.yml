@@ -1,0 +1,64 @@
+# ==============================================================================
+# (a) What this file is: Docker Compose configuration for the MENO platform.
+# (b) What it does: Defines and orchestrates the database (pgvector), cache (Redis), and api services.
+# (c) How it fits into the MENO system: Provides local developers with a single command to spin up all 3 tiers of the database/memory architecture.
+# ==============================================================================
+
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: meno_db
+    restart: always
+    environment:
+      POSTGRES_DB: meno
+      POSTGRES_USER: meno
+      POSTGRES_PASSWORD: meno
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meno"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: meno_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    container_name: meno_api
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://meno:meno@db:5432/meno
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# mcp:
+#   build: .
+#   command: python -m apps.mcp
+#   environment:
+#     MENO_MCP_TRANSPORT: http
+#   ports:
+#     - "8765:8765"
+
+volumes:
+  postgres_data:
