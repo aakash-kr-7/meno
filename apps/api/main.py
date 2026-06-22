@@ -20,6 +20,8 @@ logger = logging.getLogger("meno.api")
 async def lifespan(app: FastAPI):
     # On startup: log "MENO Intelligence Platform v0.2.0 starting"
     logger.info("MENO Intelligence Platform v0.2.0 starting")
+    if settings.app_env == "development":
+        logger.warning("AUTH DISABLED — development mode")
     yield
     # On shutdown
     logger.info("MENO Intelligence Platform v0.2.0 shutting down")
@@ -41,11 +43,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# TODO Router imports as placeholder comments — added in later prompts.
-# from apps.api.routes import knowledge
-# from apps.api.routes import relationships
-# from apps.api.routes import context
-# from apps.api.routes import ingestion
+from apps.api.middleware import AuthMiddleware
+app.add_middleware(AuthMiddleware)
+
+from apps.api.routes import knowledge
+from apps.api.routes import relationships
+from apps.api.routes import context
+from apps.api.routes import sessions
+from apps.api.routes import worker
+from apps.api.routes import profiles
+
+app.include_router(knowledge.router)
+app.include_router(relationships.router)
+app.include_router(context.router)
+app.include_router(sessions.router)
+app.include_router(worker.router)
+app.include_router(profiles.router)
 
 
 @app.get("/health")

@@ -3,3 +3,6 @@
 (b) What it does: Package initializer for API middleware.
 (c) How it fits into the MENO system: Contains authentication, logging, and other cross-cutting middleware components.
 """
+from apps.api.middleware.auth import AuthMiddleware
+
+__all__ = ["AuthMiddleware"]

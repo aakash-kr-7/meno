@@ -35,7 +35,7 @@ htmlcov/
 .tox/
 nosetests.xml
 coverage.xml
-*.cover
+*.coverwh
 
 # ── Database ─────────────────────────────────────────────────────────────────
 *.sqlite3

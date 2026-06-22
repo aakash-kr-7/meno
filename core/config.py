@@ -40,5 +40,15 @@ class Settings(BaseSettings):
         """Alias for APP_ENV to match the health check requirements."""
         return self.APP_ENV
 
+    @property
+    def secret_key(self) -> str:
+        """Alias for SECRET_KEY to support lowercase settings reference."""
+        return self.SECRET_KEY
+
+    @property
+    def api_key_header(self) -> str:
+        """Alias for API_KEY_HEADER to support lowercase settings reference."""
+        return self.API_KEY_HEADER
+
 
 settings = Settings()

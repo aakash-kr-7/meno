@@ -1,5 +1,29 @@
 """
-(a) What this file is: Package initializer for sdk/python/meno.
-(b) What it does: Package initializer for the primary MENO Python SDK.
-(c) How it fits into the MENO system: Exposes the user-facing Client, models, and utility functions of the SDK.
+MENO SDK entry point. from meno import Meno, KnowledgeType, RelationshipType
 """
+from meno.client import Meno, MenoError
+from meno.types import KnowledgeType, RelationshipType, ContextType
+from meno.models import (
+    KnowledgeObject,
+    StoreResult,
+    RelationshipResult,
+    SubgraphResult,
+    ContextResult,
+    SessionInfo,
+)
+
+__version__ = "0.2.0"
+
+__all__ = [
+    "Meno",
+    "MenoError",
+    "KnowledgeType",
+    "RelationshipType",
+    "ContextType",
+    "KnowledgeObject",
+    "StoreResult",
+    "RelationshipResult",
+    "SubgraphResult",
+    "ContextResult",
+    "SessionInfo",
+]
