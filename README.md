@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="./assets/Meno Logo.jpeg" alt="Project Banner" width="100%">
-</p>
+![Project Banner](./assets/Meno Logo.jpeg)
 
 # MENO — Persistent Intelligence Platform
 
