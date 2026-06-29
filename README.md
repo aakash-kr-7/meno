@@ -36,9 +36,10 @@ cd meno
 cp .env.example .env
 ```
 
-### 2. Launch Services
-Spin up the PostgreSQL (pgvector enabled) and Redis instances:
+### 2. Install CLI & Launch Services
+Install the CLI and spin up the PostgreSQL (pgvector enabled) and Redis instances:
 ```bash
+pip install meno-cli
 docker compose up --build -d
 ```
 Check health by visiting: `http://localhost:8000/health` (requires a `200 OK` return with a `"tiers"` object).
@@ -249,4 +250,11 @@ We love pull requests! Please read our [CONTRIBUTING.md](file:///c:/Users/aakash
 
 This project is licensed under the MIT License — see the LICENSE file for details.
 
-<!-- MULTI_TOOL_CONTINUITY_SECTION_INSERTED_BY_PROMPT_12 -->
+## Multi-Tool Continuity
+One MENO instance. Any MCP-compatible AI tool. Knowledge survives the credit switch.
+Store a decision in Copilot. Close VS Code. Open Claude Code. Retrieve the decision — no paste,
+no re-explanation.
+
+See [docs/MULTI_TOOL_SETUP.md](docs/MULTI_TOOL_SETUP.md) for full setup guide.
+
+Quick start: `pip install meno-cli && meno init`

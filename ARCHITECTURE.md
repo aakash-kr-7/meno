@@ -159,4 +159,14 @@ This audit checklist is used during code reviews to maintain repository standard
 9. [ ] **Type-Aware Decay Integrity**: Verify ranking scores are correctly calculated using decay half-lives according to the type of retrieved object.
 10. [ ] **Graceful LLM Fallbacks**: Ensure that if the LLM extraction provider goes offline, the system safely falls back to rule-based keyword extraction without throwing 500 errors.
 
-<!-- MCP_ARCHITECTURE_SECTION_INSERTED_BY_PROMPT_12 -->
+## The Delivery Problem and Why MCP
+Prompts 1–9 solve the storage half of multi-tool continuity.
+Prompts 10–12 solve the delivery half.
+
+Three layers (in priority order):
+- **Layer 1 — MCP server (load-bearing)**: Copilot, Claude Code/Desktop, Codex, Antigravity, Cursor, Windsurf all speak MCP natively. One server covers all of them. This layer alone delivers full continuity.
+- **Layer 2 — CLI**: `meno init` for setup, `meno ingest` to seed knowledge, `meno capture` for mid-task handoffs, `meno hooks` for git-based automatic capture.
+- **Layer 3 — VS Code extension (V2, optional)**: visual graph browser. Not load-bearing.
+
+Why MCP over four separate plugins: the protocol converged. One MCP server is strictly better than four integrations that diverge independently as each tool's API changes.
+
