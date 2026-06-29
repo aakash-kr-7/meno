@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/Meno Logo.png" alt="Project Banner" width="100%">
+</p>
+
 # MENO — Persistent Intelligence Platform
 
 > **The context-boundary problem, solved.** AI coding tools forget everything when you switch tabs, run out of credits, or close the IDE. MENO is a knowledge layer that sits underneath any AI tool and remembers — so decisions made in Copilot are retrievable in Claude Code without re-explaining anything.
