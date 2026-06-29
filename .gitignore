@@ -1,3 +1,9 @@
+# ==============================================================================
+# (a) What this file is: Git exclusion pattern configuration (.gitignore).
+# (b) What it does: Specifies files/folders Git should ignore.
+# (c) How it fits into the MENO system: Prevents checking in virtual environments, secrets, DBs, caches, and IDE configs.
+# ==============================================================================
+
 # ── Secrets ────────────────────────────────────────────────────────────────
 .env
 .env.local
