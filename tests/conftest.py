@@ -61,3 +61,9 @@ async def client(cleanup) -> AsyncGenerator[AsyncClient, None]:
     # No dependency overrides needed! Both client and test connect to the same DB.
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+@pytest.fixture(scope="session", autouse=True)
+def warmup_embeddings():
+    from core.embeddings import embedding_service
+    _ = embedding_service.embed("warmup")
+

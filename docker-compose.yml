@@ -52,13 +52,14 @@ services:
         condition: service_started
     command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
 
-# mcp:
-#   build: .
-#   command: python -m apps.mcp
-#   environment:
-#     MENO_MCP_TRANSPORT: http
-#   ports:
-#     - "8765:8765"
+  mcp:
+    # mcp service only needed for MENO_MCP_TRANSPORT=http (team deployments). Solo stdio: not needed.
+    build: .
+    command: python -m apps.mcp
+    environment:
+      MENO_MCP_TRANSPORT: http
+    ports:
+      - "8765:8765"
 
 volumes:
   postgres_data:

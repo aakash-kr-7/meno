@@ -1,0 +1,10 @@
+<!-- Copy to .vscode/mcp.json in your project root. Copilot Chat agent mode will use this server. -->
+{
+  "servers": {
+    "meno": {
+      "command": "python",
+      "args": ["-m", "apps.mcp"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}

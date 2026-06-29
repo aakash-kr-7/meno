@@ -19,7 +19,7 @@ class Server(uvicorn.Server):
         pass
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def run_api_server():
     """Runs FastAPI app in a background thread on localhost:8000."""
     # Force load embedding model in main thread
@@ -39,7 +39,7 @@ def run_api_server():
 
 
 @pytest.mark.anyio
-async def test_sdk_store_and_retrieve(cleanup) -> None:
+async def test_sdk_store_and_retrieve(run_api_server, cleanup) -> None:
     sdk = Meno(base_url="http://localhost:8000")
     
     # Store CODE_PATTERN
@@ -65,7 +65,7 @@ async def test_sdk_store_and_retrieve(cleanup) -> None:
 
 
 @pytest.mark.anyio
-async def test_sdk_relate_and_graph(cleanup) -> None:
+async def test_sdk_relate_and_graph(run_api_server, cleanup) -> None:
     sdk = Meno(base_url="http://localhost:8000")
     
     # Store 2 objects
@@ -102,7 +102,7 @@ async def test_sdk_relate_and_graph(cleanup) -> None:
 
 
 @pytest.mark.anyio
-async def test_sdk_define_context_and_scope(cleanup) -> None:
+async def test_sdk_define_context_and_scope(run_api_server, cleanup) -> None:
     sdk = Meno(base_url="http://localhost:8000")
     
     # Define context
@@ -148,7 +148,7 @@ async def test_sdk_define_context_and_scope(cleanup) -> None:
 
 
 @pytest.mark.anyio
-async def test_sdk_session_and_promote(cleanup) -> None:
+async def test_sdk_session_and_promote(run_api_server, cleanup) -> None:
     sdk = Meno(base_url="http://localhost:8000")
     
     # Create session
@@ -157,7 +157,7 @@ async def test_sdk_session_and_promote(cleanup) -> None:
     
     # Append 3 messages (one decision-flavored)
     await sdk.aappend_message(session_id=session_info.id, role="user", content="Hello, let's start the design discussion.")
-    await sdk.aappend_message(session_id=session_info.id, role="assistant", content="Sure, what is on your mind?")
+    await sdk.aappend_message(session_id=session_info.id, role="assistant", content="Sure, what is the plan?")
     # Decision-flavored message
     await sdk.aappend_message(
         session_id=session_info.id, 

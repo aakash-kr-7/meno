@@ -7,7 +7,18 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from core.config import settings
 
-engine = create_async_engine(settings.DATABASE_URL)
+import sys
+from sqlalchemy.pool import NullPool
+from core.config import settings
+
+# Use NullPool during testing/pytest to prevent cross-loop connection pooling issues
+is_testing = "pytest" in sys.modules or settings.APP_ENV == "test"
+
+if is_testing:
+    engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+else:
+    engine = create_async_engine(settings.DATABASE_URL)
+
 async_session = async_sessionmaker(
     bind=engine,
     expire_on_commit=False,
