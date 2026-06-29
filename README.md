@@ -1,260 +1,367 @@
-<!--
-(a) What this file is: MENO System README.md.
-(b) What it does: Serves as the primary documentation entrypoint, detailing architecture, knowledge types, setup, python SDK usage, running demos, tests, and future roadmaps.
-(c) How it fits into the MENO system: Global user-facing documentation located at the project root.
--->
-
 # MENO — Persistent Intelligence Platform
 
-> Persistent intelligence infrastructure for humans, AI agents, codebases, and organizations.
-
-MENO bridges the gap between transient conversation context and long-term repository knowledge. By extracting structured decisions, architectures, bug reports, and code patterns from developers' interactions and codebase histories, MENO forms a contextually aware, queryable knowledge graph with type-aware decay ranking.
+> **The context-boundary problem, solved.** AI coding tools forget everything when you switch tabs, run out of credits, or close the IDE. MENO is a knowledge layer that sits underneath any AI tool and remembers — so decisions made in Copilot are retrievable in Claude Code without re-explaining anything.
 
 ---
 
-## What Makes MENO Different
+## The Problem
 
-Traditional systems treat context as transient chat history (working memory) or generic vector embeddings without relationship edges. MENO divides memory into structured layers, separating immediate conversation details from long-term verified facts.
+Every AI coding session starts from zero. You made an important architecture decision last Tuesday in Cursor. Today you're in Claude Code. You explain it again. Next week you're in Copilot. You explain it again. At team scale, this is worse — critical knowledge lives inside individual chat histories that no one else can see.
 
-| Dimension | Working Memory (Tier 0) | Extracted Knowledge (Tier 1-2) | Persistent Intelligence (Tier 3) |
-|---|---|---|---|
-| **Focus** | Session context & message history | Verified facts, decisions, structures | Cross-context heuristics & patterns |
-| **Storage** | Redis + PostgreSQL | PostgreSQL + pgvector | Graph + Relational Summaries |
-| **Lifespan** | Temporary (Evicts on inactivity) | Configurable (Ages with half-life decay) | Permanent |
-| **Search Mode** | Key-Value / Session ID Lookup | Cosine Vector Search + Type-Aware Re-ranking | Graph Traversal (BFS) / Narrative Walking |
+Traditional RAG approaches don't fix this. They treat a throwaway observation from yesterday with the same weight as a core architectural decision made six months ago.
+
+## What MENO Does Differently
+
+MENO structures knowledge into **typed objects with semantic identity, half-life decay ranking, and a relationship graph** — then delivers it to every MCP-compatible AI tool through a single server.
+
+```
+Store a decision in Copilot.
+Close VS Code.
+Open Claude Code.
+Retrieve the decision — no paste, no re-explanation.
+```
+
+| What other tools do                         | What MENO does                                                                   |
+| ------------------------------------------- | -------------------------------------------------------------------------------- |
+| Flat chat history, gone on session end      | Typed knowledge objects, persisted permanently                                   |
+| Generic vector embeddings, no relationships | Relationship graph: `DECISION implements CODE_PATTERN`                           |
+| All knowledge treated equally               | Half-life decay: architecture lives 180 days, bug reports 30 days                |
+| One tool, one silo                          | One MCP server covers Copilot, Claude Code, Cursor, Windsurf, Codex, Antigravity |
 
 ---
 
-## Quick Start
+## Architecture
 
-Get MENO up and running in less than 5 minutes.
+MENO is structured around four memory tiers that mirror how human cognition actually consolidates knowledge.
 
-### 1. Clone & Configure
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  AI Tools & Clients                                             │
+│  Copilot · Claude Code · Cursor · Windsurf · Codex · CLI · SDK │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │  MCP (stdio or HTTP)
+┌──────────────────────────▼──────────────────────────────────────┐
+│  apps/mcp  —  9 MCP tools                                      │
+│  store · retrieve · relate · graph · session · promote · …     │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │  internal function calls
+┌──────────────────────────▼──────────────────────────────────────┐
+│  apps/api  —  FastAPI REST (localhost:8000)                     │
+│  /knowledge · /sessions · /context · /worker · /profile        │
+└────┬──────────────────────┬──────────────────────────┬──────────┘
+     │                      │                          │
+┌────▼────────┐   ┌─────────▼──────────┐   ┌──────────▼─────────┐
+│  Tier 0     │   │  Tier 1 + 2        │   │  Tier 3            │
+│  Redis      │   │  Postgres          │   │  Postgres          │
+│  Working    │   │  + pgvector        │   │  Behavioral        │
+│  memory     │   │  Knowledge objects │   │  profiles          │
+│  < 5ms      │   │  + graph edges     │   │  & preferences     │
+│  24h TTL    │   │  cosine + BFS      │   │                    │
+└─────────────┘   └────────────────────┘   └────────────────────┘
+                           ▲
+              ┌────────────┴────────────┐
+              │  Promotion worker       │
+              │  Session → typed        │
+              │  knowledge objects      │
+              │  + relationship infer   │
+              └─────────────────────────┘
+```
+
+### Knowledge types and how they age
+
+Not all knowledge is equally durable. A bug fix from last month is likely irrelevant. An architectural decision from six months ago still governs today's code.
+
+| Type                           | Example                                                 | Half-life |
+| ------------------------------ | ------------------------------------------------------- | --------- |
+| `decision` / `architecture`    | "We chose SQLite over Postgres for embedded deployment" | 180 days  |
+| `api_spec`                     | "Auth header format: Bearer + JWT"                      | 90 days   |
+| `code_pattern` / `refactoring` | "Batch Postgres inserts in chunks of 500"               | 60 days   |
+| `bug_report`                   | "Connection pool exhaustion under high concurrency"     | 30 days   |
+| `memory`                       | General conversation observations                       | 7 days    |
+
+The ranking formula weighs semantic similarity (50%), recency with type-aware decay (20%), confidence (15%), context match (10%), and access frequency (5%).
+
+### Relationship graph
+
+Knowledge objects link to each other with typed edges:
+
+```
+DECISION ──[implements]──▶ CODE_PATTERN
+BUG_REPORT ──[contradicts]──▶ ARCHITECTURE
+CODE_PATTERN ──[extends]──▶ CODE_PATTERN
+DECISION ──[supersedes]──▶ DECISION
+```
+
+Starting from any node, BFS traversal walks the graph outward (default depth 2) to surface related context automatically during retrieval.
+
+---
+
+## Current State
+
+MENO is a **working local-first prototype**. Everything described here is built and tested.
+
+- ✅ FastAPI backend with 20+ REST endpoints
+- ✅ pgvector semantic search with type-aware re-ranking
+- ✅ Relationship graph with BFS traversal and automatic inference
+- ✅ Redis working memory with Postgres persistence and dual-write
+- ✅ Promotion pipeline: session → typed extraction → relationship linking
+- ✅ MCP server with 9 tools covering all major AI coding IDEs
+- ✅ CLI: `meno init`, `meno ingest`, `meno capture`, `meno hooks`, `meno status`
+- ✅ Python SDK (sync + async)
+- ✅ 30 passing integration tests across 7 test files
+- ✅ Auth middleware, behavioral profiles, context scoping
+
+**What it is not yet:** a hosted service. No public URL exists. Anyone trying it out runs it locally via Docker. See [Trying It Out](#trying-it-out) for the full picture.
+
+---
+
+## Trying It Out
+
+### What you need
+
+- Docker Desktop running
+- Python 3.12+
+- A project that uses at least one MCP-compatible AI tool (Copilot, Claude Code, Cursor, Windsurf, or Codex)
+
+### Setup (one time, ~2 minutes)
+
 ```bash
 git clone https://github.com/aakash-kr-7/meno.git
 cd meno
 cp .env.example .env
-```
 
-### 2. Install CLI & Launch Services
-Install the CLI and spin up the PostgreSQL (pgvector enabled) and Redis instances:
-```bash
 pip install meno-cli
-docker compose up --build -d
-```
-Check health by visiting: `http://localhost:8000/health` (requires a `200 OK` return with a `"tiers"` object).
-
-### 3. Initialize in 3 lines of Python SDK
-```python
-from meno import Meno
-sdk = Meno(base_url="http://localhost:8000")
-sdk.store(user_id="user_123", content="We decided to cache DB calls.", type="decision")
+meno init
 ```
 
----
+`meno init` does four things automatically:
 
-## Architecture Overview
+1. Runs `docker compose up --build` to start Postgres (with pgvector), Redis, and the FastAPI server
+2. Polls `localhost:8000/health` until it returns 200
+3. Scans your project for installed AI tools
+4. Writes the MCP configuration file for each detected tool
 
-MENO's storage and processing flow are organized into distinct layers (Tiers):
+### Seed your project's existing knowledge
 
-| Tier | Name | Engine / Technology | Purpose |
-|---|---|---|---|
-| **Tier 0** | Working Memory | Redis (Cache) + PostgreSQL | Immediate chat context, messages cache, and session logs. |
-| **Tier 1** | Scoped Knowledge | PostgreSQL + pgvector (BAAI/bge-small-en-v1.5) | Vector search of specific context objects (code patterns, decisions). |
-| **Tier 2** | Relationship Graph | PostgreSQL Foreign Keys + BFS traversal | Graph connections linking objects together (e.g. DECISION implements CODE_PATTERN). |
-| **Tier 3** | Behavioral Profiles | PostgreSQL JSONB + Context Heuristics | User-specific context lengths, preferences, and language tones. |
+Before your first session, seed MENO with your existing docs so retrieval is useful from day one:
 
-For a deep-dive design blueprint, view the complete [ARCHITECTURE.md](file:///c:/Users/aakash09/Desktop/meno/ARCHITECTURE.md).
-
----
-
-## Knowledge Types & Ranking
-
-Not all knowledge ages equally. A software architecture decision is relevant for months, whereas a temporary bug report decays quickly. MENO applies a type-aware decay function using configurable half-lives:
-
-| Type | Use Case | Ranking Half-Life |
-|---|---|---|
-| **`decision`** | Key architectural or business choices. | 180 Days |
-| **`architecture`**| Overall system designs, components, and module relations. | 180 Days |
-| **`api_spec`** | API contracts, endpoints, schemas, or interfaces. | 90 Days |
-| **`code_pattern`** | Code decorators, caching designs, batch configurations. | 60 Days |
-| **`refactoring`** | Refactoring actions, codebase cleanup, simplifications. | 60 Days |
-| **`bug_report`** | Database pool issues, memory leaks, crashing stacktraces. | 30 Days |
-| **`memory`** | Conversations, general statements, transient observations. | 7 Days |
-
----
-
-## API Reference
-
-All requests must pass authentication (handled via the `X-API-Key` header when enabled).
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Server status, version, active env, and tiers configuration. |
-| `POST`| `/knowledge/store` | Store a new typed knowledge object scoped to contexts. |
-| `POST`| `/knowledge/retrieve` | Semantic vector search with type-aware decay re-ranking. |
-| `POST`| `/knowledge/search/structured` | Structured search by type, context, and limits. |
-| `GET` | `/knowledge/{object_id}` | Fetch a specific knowledge object and its graph edges. |
-| `DELETE`| `/knowledge/{object_id}` | Remove a specific knowledge object from store. |
-| `POST`| `/knowledge/relate` | Link two knowledge objects with a typed relationship edge. |
-| `GET` | `/knowledge/{object_id}/relationships` | Fetch direct incoming or outgoing relationships. |
-| `GET` | `/knowledge/graph/{object_id}` | Walk the graph using BFS out to `max_depth` levels. |
-| `POST`| `/context/` | Register a new metadata context (e.g., `project`, `team`). |
-| `GET` | `/context/{context_type}/{context_id}` | Fetch context configuration and metadata. |
-| `GET` | `/context/{context_uuid}/knowledge` | Retrieve all knowledge objects belonging to a context. |
-| `POST`| `/sessions/` | Create a new conversation session. |
-| `POST`| `/sessions/{session_id}/messages` | Append a message to active working memory. |
-| `GET` | `/sessions/{session_id}` | Get complete message history of a session. |
-| `DELETE`| `/sessions/{session_id}` | Expire working memory cache and delete session database rows. |
-| `GET` | `/sessions/{session_id}/extracted` | Get all objects promoted from a session. |
-| `POST`| `/worker/promote/{session_id}` | Manually trigger extraction pipeline for a session. |
-| `POST`| `/worker/promote-all` | Scan and promote all eligible inactive sessions. |
-| `GET` | `/profile/{user_id}` | Fetch behavioral preferences and tone metrics. |
-| `PATCH`| `/profile/{user_id}` | Update context sizes, tone, preferred language, or custom extra properties. |
-
----
-
-## Python SDK
-
-To install the SDK locally:
 ```bash
-pip install -e sdk/python
+meno ingest .
 ```
 
-### Quick Start Code Block
+This walks your codebase, reads READMEs, architecture docs (`ARCHITECTURE.md`, `docs/decisions/`, ADR files), and code with meaningful docstrings, then stores them as typed knowledge objects. You'll see a live count as it runs.
+
+### Use it in your IDE
+
+Your AI tool now has access to MENO's MCP tools. Well-behaved agents (following `AGENTS.md`) will automatically:
+
+- Call `meno_retrieve` before any non-trivial task
+- Call `meno_store` after decisions, bug fixes, or code pattern discoveries
+- Call `meno_promote_session` before ending a long session or switching tools
+
+If your tool doesn't call these automatically, you can prompt it explicitly:
+
+```
+Check MENO for any existing decisions about database schema before we start.
+```
+
+```
+Store this decision in MENO: we're using Redis for session queuing to throttle concurrent DB connections.
+```
+
+### Python SDK
+
 ```python
 from meno import Meno, KnowledgeType, RelationshipType
 
-# Initialize MENO Client
 sdk = Meno(base_url="http://localhost:8000")
 
-# 1. Store context
-ctx = sdk.define_context("project", "sol_demo")
-
-# 2. Store knowledge objects scoped to context
-pattern = sdk.store(
-    user_id="dev_user",
-    content="Use batch processing with chunks of 500.",
-    type=KnowledgeType.CODE_PATTERN,
-    context_ids=[ctx.id]
-)
-
+# Store a decision
+ctx = sdk.define_context("project", "my_project")
 decision = sdk.store(
-    user_id="dev_user",
-    content="We chose 500-sized batching chunks to optimize PostgreSQL memory.",
+    user_id="you",
+    content="We chose pgvector because it runs inside Postgres, avoiding a separate vector DB.",
     type=KnowledgeType.DECISION,
     context_ids=[ctx.id]
 )
 
-# 3. Create relationship edges
-sdk.relate(
-    source_id=decision.id,
-    target_id=pattern.id,
-    relationship_type=RelationshipType.IMPLEMENTS
-)
-
-# 4. Semantic query retrieval
+# Retrieve semantically
 results = sdk.retrieve(
-    user_id="dev_user",
-    query="how to batch insertions in database?",
+    user_id="you",
+    query="why are we using postgres for vector search?",
     context_id=ctx.id,
     expand_relationships=True
 )
-print("Top Result:", results[0].content)
+print(results[0].content)
 ```
+
+### Capture a conversation manually
+
+If you had a useful session in another tool and want to extract knowledge from it:
+
+```bash
+# Paste a conversation and pipe it in
+echo "User: We decided to use tokio for async. Assistant: Good call, tokio is the standard." | meno capture
+```
+
+### Git hook (automatic capture on commit)
+
+```bash
+meno hooks install
+```
+
+Every commit thereafter: the post-commit hook reads the commit message and diff, extracts typed knowledge (decisions, bug fixes, refactorings), and stores them in MENO. Exits 0 no matter what — never blocks a commit.
 
 ---
 
-## Running the Demo
+## Known Limitations
 
-Ensure docker compose containers are up and running, then execute:
-```bash
-python examples/demo_knowledge.py
+**These are real. Be aware of them.**
+
+**Docker must be running.** MENO is entirely local. If Docker is down, the API is down, MCP tools fail silently, and your AI tool just works without persistence. Nothing crashes — knowledge just stops being saved. You need to run `docker compose up -d` after every machine restart. A startup script or Docker Desktop's "start on login" setting helps.
+
+**AI tools don't always call the MCP tools unprompted.** `AGENTS.md` is a nudge, not enforcement. Some tools follow it well; others ignore it. You may need to explicitly tell the AI to check MENO, especially for the first few sessions until you develop a feel for your tool's behavior.
+
+**Knowledge compounds over time.** Day one retrieval returns little because little has been stored. The value builds across sessions. Use `meno ingest .` first to bootstrap, then let sessions promote naturally.
+
+**No public hosting.** There's no `try.meno.dev`. To share this with someone, they either clone and run locally, or you deploy to Railway/Render/Fly.io first. See [Team Deployment](#team-deployment) below.
+
+**The extraction pipeline is rule-based by default.** LLM-based extraction (more accurate classification) requires setting `LLM_EXTRACTION_ENABLED=true` and an `LLM_API_KEY` in `.env`. The rule-based mode is intentional — it works offline, zero cost, zero latency — but it's less precise.
+
+---
+
+## Team Deployment
+
+To give a teammate a one-command setup without them running Docker themselves:
+
+**1. Deploy to Railway (recommended)**
+
+Create a Railway project. Add:
+
+- A Postgres service (enable the pgvector plugin)
+- A Redis service
+- A Web service pointed at this repo, with `docker compose` or the Dockerfile directly
+
+Set these environment variables in Railway:
+
 ```
-This runs the full walkthrough: context registration, object storage, relationship linking, expanded retrieval, graph traversal, and automated session promotion.
+DATABASE_URL=postgresql+asyncpg://...  (from Railway Postgres)
+REDIS_URL=redis://...                  (from Railway Redis)
+SECRET_KEY=your_secret_key_here
+APP_ENV=production
+```
+
+**2. Each teammate runs one command**
+
+```bash
+pip install meno-cli
+meno init --remote https://your-project.railway.app --api-key your_secret_key_here
+```
+
+That's it. Their IDEs get configured automatically, pointing at your shared Railway instance. Knowledge stored by one person is immediately retrievable by everyone on the team.
 
 ---
 
 ## Running Tests
 
-All integration and unit tests are run using `pytest`. Ensure Docker Compose services are running before executing:
+Ensure Docker is running first, then:
+
 ```bash
 pytest tests/ -v
 ```
+
+All 30 tests should pass. Test files cover: auth middleware, knowledge extraction, knowledge store/retrieval, MCP server tools, ranking correctness, SDK integration, session management, and cross-process continuity.
 
 ---
 
 ## Project Structure
 
 ```
-├── .github/
-│   └── ISSUE_TEMPLATE/
-│       ├── bug_report.md        # Issue template for bugs
-│       └── feature_request.md   # Issue template for feature proposals
+meno/
 ├── apps/
-│   ├── api/                     # FastAPI backend
-│   │   ├── middleware/          # Security, auth, & API key middleware
-│   │   ├── routes/              # Health, context, knowledge, session routers
-│   │   ├── main.py              # Application entrypoint & startup lifespans
-│   │   └── schemas.py           # Pydantic v2 schemas
-│   ├── mcp/                     # Model Context Protocol integrations (future)
-│   └── worker/                  # Session promotion background workers
-├── core/                        # Configuration & engine singletons
-│   ├── auth.py                  # API Key validation logic
-│   ├── config.py                # Environment & settings configurations
-│   ├── embeddings.py            # Sentence-Transformers BGE model server
-│   ├── llm.py                   # Rule-based & LLM extraction pipelines
-│   ├── ranking.py               # Time-decay re-ranking functions
-│   └── types.py                 # Canonical Type Enums
-├── db/                          # Database connection and model layers
-│   ├── migrations/              # Alembic database migration versions
-│   ├── models/                  # SQLAlchemy ORM declarations
-│   ├── base.py                  # Declarative base mappings
-│   └── session.py               # Postgres engine and session makers
+│   ├── api/                    # FastAPI app — routes, schemas, middleware
+│   │   ├── middleware/auth.py  # X-API-Key enforcement
+│   │   ├── routes/             # knowledge, sessions, context, worker, profiles
+│   │   └── main.py             # App factory, lifespan, CORS
+│   ├── mcp/                    # MCP server — 9 tools, stdio + HTTP transport
+│   └── worker/                 # Promotion worker
+├── cli/meno_cli/               # meno CLI (init, ingest, capture, hooks, status)
+├── core/
+│   ├── config.py               # Pydantic Settings — single source of truth
+│   ├── embeddings.py           # BAAI/bge-small-en-v1.5 singleton
+│   ├── ranking.py              # Type-aware half-life decay scoring
+│   ├── llm.py                  # Rule-based + LLM extraction engine
+│   └── types.py                # KnowledgeType, RelationshipType, ContextType enums
+├── db/
+│   ├── models/                 # SQLAlchemy ORM: knowledge objects, relationships,
+│   │   │                       # contexts, sessions, behavioral profiles
+│   └── migrations/             # Alembic versions
+├── knowledge/
+│   ├── store.py                # Write path — embed + insert + link contexts
+│   ├── retrieval.py            # Cosine search → re-ranking → relationship expansion
+│   ├── relationships.py        # Graph edges, BFS traversal
+│   ├── context.py              # Context scoping (project / team / org)
+│   └── extraction.py          # Session promotion pipeline
+├── memory/working/
+│   └── redis_store.py          # Tier 0 working memory
+├── sdk/python/                 # Python SDK (sync + async, Pydantic models)
+├── mcp_clients/                # Config snippets for each supported IDE
 ├── examples/
-│   └── demo_knowledge.py        # Complete SDK usage demonstration script
-├── knowledge/                   # Search, store, and extraction components
-│   ├── context.py               # Context linking & context scoping
-│   ├── extraction.py            # Rule-based and LLM parser triggers
-│   ├── relationships.py         # Relationship creation & graph queries
-│   ├── retrieval.py             # Cosine distance retrieval wrappers
-│   └── store.py                 # Knowledge storage controllers
-├── memory/
-│   └── working/                 # Redis working memory cache layers
-├── sdk/
-│   └── python/                  # MENO Python SDK source code
-└── tests/                       # Unit and integration test suites
+│   ├── demo_knowledge.py       # Full 6-phase SDK walkthrough
+│   └── demo_continuity.py      # Cross-process continuity proof
+└── tests/                      # 30 integration tests
 ```
+
+---
+
+## Supported Tools
+
+| Tool                   | Transport | Config location                        |
+| ---------------------- | --------- | -------------------------------------- |
+| VS Code / Copilot Chat | stdio     | `.vscode/mcp.json`                     |
+| Claude Code            | stdio     | `claude mcp add`                       |
+| Claude Desktop         | stdio     | `claude_desktop_config.json`           |
+| OpenAI Codex CLI/IDE   | stdio     | `.codex/config.toml`                   |
+| Google Antigravity     | stdio     | `.gemini/antigravity*/mcp_config.json` |
+| Cursor                 | stdio     | `.cursor/mcp.json`                     |
+| Windsurf               | stdio     | `.windsurf/mcp.json`                   |
+| Any tool (team)        | HTTP/SSE  | remote URL + `X-API-Key` header        |
+
+`meno init` writes all of these automatically for whichever tools it detects in your project.
 
 ---
 
 ## Roadmap
 
-- **Year 1**: Establish reliable local-first extraction pipelines, single-tenant FastAPI backends, and simple key-based auth.
-- **Year 2**: Multi-tenant database partitioning, enhanced model contexts (MCP servers), and visual graph explorers.
-- **Year 3**: Advanced vector re-ranking models and LLM agentic memory loopback.
-- **Year 4**: Autonomous memory cleaning, auto-supersedes updates, and conflict resolution algorithms.
-- **Year 5**: Complete organizational intelligence ledger with cross-tenant context routing.
+This repository is a working prototype. The next version is a separate project aimed at production-grade, multi-tenant deployment.
 
-For the full roadmap and architecture constraints, view the [ARCHITECTURE.md](file:///c:/Users/aakash09/Desktop/meno/ARCHITECTURE.md).
+**Planned for v2:**
+
+- Multi-tenant database partitioning with row-level isolation
+- Custom embedding models trained on source code tokens
+- Autonomous conflict resolution (new decision `supersedes` old one automatically)
+- Visual knowledge graph browser (VS Code extension)
+- Automatic memory compaction: expired Tier 0 logs summarized before deletion
+- Full organizational ledger with cross-context routing and privacy filters
 
 ---
 
 ## Contributing
 
-We love pull requests! Please read our [CONTRIBUTING.md](file:///c:/Users/aakash09/Desktop/meno/CONTRIBUTING.md) to learn about our developer setup, coding standards (like mandatory file headers and enum usages), and PR checklist.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for developer setup, coding standards (header comments on every file, enum usage, no raw SQL), and the PR checklist.
+
+**Three rules that apply to every file in this repo:**
+
+1. Every file starts with a 3-part header comment: what it is, what it does, how it fits
+2. No placeholders — all code is real and runnable
+3. Always use enums from `core/types.py`, never inline strings
 
 ---
 
 ## License
 
-This project is licensed under the MIT License — see the LICENSE file for details.
+MIT — see [LICENSE](LICENSE).
 
-## Multi-Tool Continuity
-One MENO instance. Any MCP-compatible AI tool. Knowledge survives the credit switch.
-Store a decision in Copilot. Close VS Code. Open Claude Code. Retrieve the decision — no paste,
-no re-explanation.
+---
 
-See [docs/MULTI_TOOL_SETUP.md](docs/MULTI_TOOL_SETUP.md) for full setup guide.
-
-Quick start: `pip install meno-cli && meno init`
+_MENO: from the Greek μένω — "to remain, to persist, to endure."_
